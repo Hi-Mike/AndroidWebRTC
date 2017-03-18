@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.orhanobut.logger.Logger;
@@ -34,6 +36,7 @@ import org.webrtc.VideoRendererGui;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,8 +51,13 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
     PeerConnectionFactory factory;
     PubNub pubnub;
     Button switchCamera;
-    Button send;
+    Button call;
+    Button sendData;
+    EditText sendMsg;
+    TextView msgContent;
     VideoCapturerAndroid videoCapturer;
+    DataChannel mDataChannel;
+    StringBuffer sb;
     boolean isSend = false;
 
     // Local preview screen position before call is connected.
@@ -92,7 +100,10 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
         mGLSurfaceView = (GLSurfaceView) findViewById(R.id.gl_surface);
         mGLSurfaceView.setKeepScreenOn(true);
         switchCamera = (Button) findViewById(R.id.switch_camera);
-        send = (Button) findViewById(R.id.send);
+        call = (Button) findViewById(R.id.call);
+        sendData = (Button) findViewById(R.id.send_data);
+        sendMsg = (EditText) findViewById(R.id.send_msg);
+        msgContent = (TextView) findViewById(R.id.msg_content);
 
         List<PeerConnection.IceServer> iceServers = getXirSysIceServers();
 
@@ -210,8 +221,8 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
                 .channels(Arrays.asList("mike", "frost")) // subscribe to channels
                 .execute();
 
-        // 8. createOffer, when success, setLocalDescription and send it to the other peer
-        send.setOnClickListener(new View.OnClickListener() {
+        // 8. createOffer, when success, setLocalDescription and call it to the other peer
+        call.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 isSend = true;
@@ -234,12 +245,27 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
                 });
             }
         });
+
+        mDataChannel = pc.createDataChannel("something", new DataChannel.Init());
+        sendData.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String text = sendMsg.getText().toString().trim();
+                if (!text.isEmpty()) {
+                    sendMsg.setText("");
+                    mDataChannel.send(new DataChannel.Buffer(ByteBuffer.wrap(text.getBytes()), false));
+                }
+            }
+        });
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         pc.dispose();
+        mDataChannel.unregisterObserver();
+        mDataChannel.dispose();
+        videoCapturer.dispose();
         factory.dispose();
         pubnub.disconnect();
         pubnub.destroy();
@@ -300,7 +326,32 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
 
     @Override
     public void onDataChannel(DataChannel dataChannel) {
-        Logger.d("onDataChannel:" + dataChannel);
+        sb = new StringBuffer();
+        Logger.d("onDataChannel:" + dataChannel.label() + " " + dataChannel.state());
+        dataChannel.registerObserver(new DataChannel.Observer() {
+            @Override
+            public void onBufferedAmountChange(long l) {
+                Logger.d(l);
+            }
+
+            @Override
+            public void onStateChange() {
+                Logger.d("onStateChange");
+            }
+
+            @Override
+            public void onMessage(DataChannel.Buffer buffer) {
+                byte[] data = new byte[buffer.data.capacity()];
+                buffer.data.get(data);
+                sb.append("\n").append(new String(data));
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        msgContent.setText(sb.toString());
+                    }
+                });
+            }
+        });
     }
 
     @Override
