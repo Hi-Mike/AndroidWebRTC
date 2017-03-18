@@ -1,0 +1,37 @@
+apply plugin: 'com.android.application'
+
+Properties properties = new Properties()
+File propertyFile = new File(rootDir.getAbsolutePath() + "/local.properties")
+properties.load(propertyFile.newDataInputStream())
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
+    defaultConfig {
+        applicationId "himike.win.androidwebrtc"
+        minSdkVersion 15
+        targetSdkVersion 21
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        buildConfigField 'String', "XIR_SYS_KEY", "${properties.getProperty("XIR_SYS_KEY")}"
+        buildConfigField 'String', "PUBNUB_PUBLISH_KEY", "${properties.getProperty("PUBNUB_PUBLISH_KEY")}"
+        buildConfigField 'String', "PUBNUB_SUBSCRIBE_KEY", "${properties.getProperty("PUBNUB_SUBSCRIBE_KEY")}"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.android.support:appcompat-v7:25.2.0'
+
+    compile 'io.pristine:libjingle:9694@aar'
+    compile 'com.orhanobut:logger:1.15'
+    compile group: 'com.pubnub', name: 'pubnub-gson', version: '4.6.0'
+}
