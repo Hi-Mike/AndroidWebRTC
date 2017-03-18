@@ -25,9 +25,9 @@ import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.RendererCommon;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
-import org.webrtc.VideoCapturer;
 import org.webrtc.VideoCapturerAndroid;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRendererGui;
@@ -47,8 +47,9 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
     PeerConnection pc;
     PeerConnectionFactory factory;
     PubNub pubnub;
-    //    Button ok;
+    Button switchCamera;
     Button send;
+    VideoCapturerAndroid videoCapturer;
     boolean isSend = false;
 
     // Local preview screen position before call is connected.
@@ -70,7 +71,7 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
     private VideoRenderer.Callbacks localRender;
     private VideoRenderer.Callbacks remoteRender;
 
-    private VideoRendererGui.ScalingType scalingType = VideoRendererGui.ScalingType.SCALE_ASPECT_FILL;
+    private RendererCommon.ScalingType scalingType = RendererCommon.ScalingType.SCALE_ASPECT_FILL;
 
     public List<PeerConnection.IceServer> getXirSysIceServers() {
         List<PeerConnection.IceServer> servers = new ArrayList<>();
@@ -90,7 +91,7 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
         setContentView(R.layout.activity_main);
         mGLSurfaceView = (GLSurfaceView) findViewById(R.id.gl_surface);
         mGLSurfaceView.setKeepScreenOn(true);
-//        ok = (Button) findViewById(R.id.ok);
+        switchCamera = (Button) findViewById(R.id.switch_camera);
         send = (Button) findViewById(R.id.send);
 
         List<PeerConnection.IceServer> iceServers = getXirSysIceServers();
@@ -100,15 +101,14 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
                 this,//上下文，可自定义监听
                 true,//是否初始化音频，布尔值
                 true,//是否初始化视频，布尔值
-                true,//是否支持硬件加速，布尔值
-                null);//是否支持硬件渲染，布尔值
+                true);//是否支持硬件加速，布尔值
 
         // 1. create PeerConnectionFactory
         factory = new PeerConnectionFactory();
 
         // 2. get VideoSource and AudioSource
-        String frontCameraName = VideoCapturerAndroid.getNameOfFrontFacingDevice();
-        VideoCapturer videoCapturer = VideoCapturerAndroid.create(frontCameraName);
+        String frontCameraName = CameraUtils.getNameOfFrontFacingDevice();
+        videoCapturer = VideoCapturerAndroid.create(frontCameraName, null);
 
         MediaConstraints videoConstraints = new MediaConstraints();
         videoConstraints.mandatory.add(new MediaConstraints.KeyValuePair("maxWidth", "1280"));
@@ -218,12 +218,22 @@ public class MainActivity extends AppCompatActivity implements SdpObserver, Peer
                 pc.createOffer(MainActivity.this, pcConstraints);
             }
         });
-//        ok.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                isSend = false;
-//            }
-//        });
+        switchCamera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                videoCapturer.switchCamera(new VideoCapturerAndroid.CameraSwitchHandler() {
+                    @Override
+                    public void onCameraSwitchDone(boolean b) {
+
+                    }
+
+                    @Override
+                    public void onCameraSwitchError(String s) {
+
+                    }
+                });
+            }
+        });
     }
 
     @Override
